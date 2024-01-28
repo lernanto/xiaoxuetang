@@ -33,14 +33,16 @@ for fname in tqdm(sorted(e.path for e in os.scandir(args.indir) \
     if e.is_file() and os.path.splitext(e.name)[1] == '.xlsx')):
     # 少数文件列的命名和其他文件不一致，统一成最常用的
     d = pd.read_excel(fname, dtype=str) \
-        .rename(columns={'Order': '字號', 'Char': '字'})[['字號', '字']] \
-        .drop_duplicates('字號')
-    d['字號'] = d['字號'].astype(int)
+        .rename(columns={'Order': '字號', 'Char': '字'}) \
+        .groupby('字號', as_index=False, sort=False) \
+        .agg(字=('字', 'first'), 頻次=('字號', 'count'))
     data.append(d)
 
 data = pd.concat(data, axis=0, ignore_index=True) \
-    .drop_duplicates('字號') \
-    .sort_values('字號')
-data.to_csv(args.output, index=False, encoding='utf-8', lineterminator='\n')
+    .groupby('字號', sort=False) \
+    .agg({'字': 'first', '頻次': 'sum'})
+data.set_index(data.index.astype(int)) \
+    .sort_index() \
+    .to_csv(args.output, encoding='utf-8', lineterminator='\n')
 
 logging.info(f'{data.shape[0]} characters written to {args.output} .')
